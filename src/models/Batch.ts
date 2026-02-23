@@ -1,0 +1,47 @@
+import mongoose, { Schema, Document } from 'mongoose';
+import { z } from 'zod';
+
+export const stageEnumChoices = [
+    'init',
+    'deedcontroll',
+    'imageUpload',
+    'image qc',
+    'uat',
+    'digital sign',
+    'pdf export',
+    'data entry',
+    'data qc',
+    'final data qc',
+    'data uat',
+    'deed export',
+] as const;
+
+export const batchSchemaZod = z.object({
+    batchCode: z.string().min(1, 'Batch code is required'), // 2 digit district + 2 digit RO + 1 digit booktype + deed year + 3 digit volume
+    districtId: z.string().or(z.any()), // ObjectId ref District
+    roCode: z.string().min(1, 'RO Code is required'),
+    createdBy: z.string().or(z.any()), // ObjectId ref User
+    stage: z.enum(stageEnumChoices).default('init'),
+});
+
+export type IBatch = z.infer<typeof batchSchemaZod> & Document;
+
+const BatchSchema = new Schema<IBatch>(
+    {
+        batchCode: { type: String, required: true, unique: true },
+        districtId: { type: Schema.Types.ObjectId, ref: 'District', required: true },
+        roCode: { type: String, required: true },
+        createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        stage: {
+            type: String,
+            enum: stageEnumChoices,
+            default: 'init',
+            required: true,
+        },
+    },
+    { timestamps: true }
+);
+
+const Batch = mongoose.models.Batch || mongoose.model<IBatch>('Batch', BatchSchema);
+
+export default Batch;
