@@ -43,7 +43,7 @@ export default function LoginPage() {
                 setStep(2);
             } else {
                 localStorage.setItem('token', data.token);
-                router.push('/dashboard');
+                router.push('/');
             }
         } catch (err: any) {
             setError(err.message);
@@ -70,7 +70,7 @@ export default function LoginPage() {
             }
 
             localStorage.setItem('token', data.token);
-            router.push('/dashboard');
+            router.push('/');
         } catch (err: any) {
             setError(err.message);
         } finally {
