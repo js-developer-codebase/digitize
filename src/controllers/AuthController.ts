@@ -57,6 +57,34 @@ export class AuthController {
             );
         }
     }
+
+    async getMe(req: NextRequest) {
+        try {
+            const token = req.cookies.get('auth_token')?.value;
+
+            if (!token) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
+
+            // Note: In a real app, you might want to verify the token here OR 
+            // rely on middleware and pass the user info in the request object if using a framework that supports it.
+            // Since this is Next.js App Router, we'll verify it here if not passed.
+            const { jwtVerify } = await import('jose');
+            const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-jwt';
+            const secret = new TextEncoder().encode(JWT_SECRET);
+
+            const { payload } = await jwtVerify(token, secret);
+            const userId = payload.id as string;
+
+            const result = await authService.getMe(userId);
+            return NextResponse.json(result, { status: 200 });
+        } catch (error: any) {
+            return NextResponse.json(
+                { error: error.message || 'Failed to fetch user session' },
+                { status: 500 }
+            );
+        }
+    }
 }
 
 export const authController = new AuthController();

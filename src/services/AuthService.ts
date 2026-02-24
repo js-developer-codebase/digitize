@@ -79,6 +79,20 @@ export class AuthService {
             },
         };
     }
+
+    async getMe(userId: string) {
+        const user = await userRepository.findById(userId);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        return {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            userType: user.userType,
+            accessRO: user.accessRO,
+        };
+    }
 }
 
 export const authService = new AuthService();
