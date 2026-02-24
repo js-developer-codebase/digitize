@@ -19,19 +19,21 @@ export class AuthService {
             throw new Error('Invalid email or password');
         }
 
-        // Generate a 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Generate a 6-digit OTP (Temporarily fixed for testing)
+        const otp = '000000';
         const otpExpires = new Date(Date.now() + 10 * 60000); // 10 minutes
 
         await userRepository.update(user._id as unknown as string, { otp, otpExpires });
 
-        // Send OTP via resend
+        // Temporarily disabled Resend for testing
+        /*
         await resend.emails.send({
             from: 'onboarding@resend.dev',
             to: user.email,
             subject: 'Your 2FA Login Code',
             html: `<p>Your login code is <strong>${otp}</strong>. It expires in 10 minutes.</p>`
         });
+        */
 
         return {
             requiresOtp: true,
