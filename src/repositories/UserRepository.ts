@@ -19,10 +19,22 @@ export class UserRepository {
         return User.findByIdAndUpdate(id, updateData, { new: true });
     }
 
-    // Helper method for setup script
+    async findAll(): Promise<IUser[]> {
+        return User.find({ isDeleted: { $ne: true } }).populate('userType');
+    }
+
+    async find(filter: any): Promise<IUser[]> {
+        return User.find({ ...filter, isDeleted: { $ne: true } }).populate('userType');
+    }
+
+    async softDelete(id: string): Promise<IUser | null> {
+        return User.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+    }
+
     async countDocuments(): Promise<number> {
         return User.countDocuments();
     }
 }
 
 export const userRepository = new UserRepository();
+

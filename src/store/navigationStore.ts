@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type NavType = 'WORK' | 'DISTRICT' | 'RO';
+export type NavType = 'WORK' | 'DISTRICT' | 'RO' | 'MANAGEMENT';
 
 export interface NavPathItem {
     id: string;
