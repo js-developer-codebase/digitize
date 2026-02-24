@@ -28,8 +28,13 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const roId = searchParams.get('roId');
+    const userId = searchParams.get('id');
 
     try {
+        if (userId) {
+            const userDetail = await userController.getUserById(user, userId);
+            return NextResponse.json(userDetail);
+        }
         const users = await userController.getUsers(user, roId || undefined);
         return NextResponse.json(users);
     } catch (error: any) {
@@ -45,6 +50,24 @@ export async function POST(req: Request) {
         const body = await req.json();
         const newUser = await userController.createUser(user, body);
         return NextResponse.json(newUser);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+}
+
+export async function PUT(req: Request) {
+    const user = await getSessionUser(req);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('id');
+
+    if (!userId) return NextResponse.json({ error: 'Missing user ID' }, { status: 400 });
+
+    try {
+        const body = await req.json();
+        const updatedUser = await userController.updateUser(user, userId, body);
+        return NextResponse.json(updatedUser);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 403 });
     }
@@ -66,4 +89,3 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ error: error.message }, { status: 403 });
     }
 }
-

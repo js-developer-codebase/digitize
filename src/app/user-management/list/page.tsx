@@ -12,7 +12,10 @@ import {
     Shield,
     Loader2,
     AlertCircle,
-    CheckCircle2
+    CheckCircle2,
+    Edit2,
+    X,
+    AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -26,7 +29,12 @@ function ManageUsersContent() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<any>(null);
+    const [deleteInput, setDeleteInput] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -45,22 +53,35 @@ function ManageUsersContent() {
         fetchUsers();
     }, [roId]);
 
-    const handleDelete = async (userId: string) => {
-        if (!confirm('Are you sure you want to delete this user? This is a soft delete.')) return;
+    const openDeleteModal = (user: any) => {
+        setUserToDelete(user);
+        setIsDeleteModalOpen(true);
+        setDeleteInput('');
+    };
 
-        setDeletingId(userId);
+    const closeDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setUserToDelete(null);
+        setDeleteInput('');
+    };
+
+    const confirmDelete = async () => {
+        if (deleteInput.toLowerCase() !== 'delete') return;
+
+        setIsDeleting(true);
         try {
-            const res = await fetch(`/api/users?id=${userId}`, {
+            const res = await fetch(`/api/users?id=${userToDelete._id}`, {
                 method: 'DELETE'
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to delete user');
 
-            setUsers(prev => prev.filter(u => u._id !== userId));
+            setUsers(prev => prev.filter(u => u._id !== userToDelete._id));
+            closeDeleteModal();
         } catch (err: any) {
-            alert(err.message);
+            setError(err.message);
         } finally {
-            setDeletingId(null);
+            setIsDeleting(false);
         }
     };
 
@@ -101,7 +122,7 @@ function ManageUsersContent() {
                     </div>
                 </header>
 
-                <main className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+                <main className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500">
                     {loading ? (
                         <div className="p-20 flex flex-col items-center justify-center text-zinc-400 gap-4">
                             <Loader2 className="animate-spin text-teal-600" size={40} />
@@ -141,14 +162,22 @@ function ManageUsersContent() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5 text-right">
-                                                <button
-                                                    onClick={() => handleDelete(u._id)}
-                                                    disabled={deletingId === u._id}
-                                                    className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                                                    title="Soft Delete"
-                                                >
-                                                    {deletingId === u._id ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
-                                                </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Link
+                                                        href={`/user-management/edit/${u._id}`}
+                                                        className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                                                        title="Edit User"
+                                                    >
+                                                        <Edit2 size={18} />
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => openDeleteModal(u)}
+                                                        className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                                        title="Secure Delete"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -173,6 +202,62 @@ function ManageUsersContent() {
                     </div>
                 )}
             </div>
+
+            {/* Custom Secure Delete Modal */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-300">
+                        <div className="p-8 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-2xl flex items-center justify-center">
+                                    <AlertTriangle size={24} />
+                                </div>
+                                <button onClick={closeDeleteModal} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black tracking-tight">Secure Deletion</h3>
+                                <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+                                    You are about to soft-delete <span className="font-bold text-zinc-900 dark:text-white">{userToDelete?.name}</span>.
+                                    This user will no longer have access to the system.
+                                </p>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
+                                    Type <span className="text-red-500 underline">delete</span> to confirm
+                                </label>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Enter confirmation..."
+                                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent focus:border-red-500/50 rounded-2xl outline-none font-bold text-lg transition-all"
+                                    value={deleteInput}
+                                    onChange={e => setDeleteInput(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={closeDeleteModal}
+                                    className="flex-1 py-4 font-black text-xs uppercase tracking-widest text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={deleteInput.toLowerCase() !== 'delete' || isDeleting}
+                                    onClick={confirmDelete}
+                                    className="flex-1 py-4 bg-red-600 hover:bg-red-700 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:text-zinc-300 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-red-500/20 transition-all flex items-center justify-center gap-2"
+                                >
+                                    {isDeleting ? <Loader2 className="animate-spin" size={16} /> : 'Delete Profile'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
