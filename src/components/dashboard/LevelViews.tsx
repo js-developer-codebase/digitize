@@ -25,7 +25,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
                         <DataCard
                             key={code}
                             title={config.name}
-                            iconName={config.icon}
+                            iconName={config.icon || 'Box'}
                             color="blue"
                             onClick={() => pushToPath({ id: code, name: config.name, type: 'WORK' })}
                         />
@@ -35,12 +35,37 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
         );
     }
 
-    // Level 1: District Cards
+    // Level 1: Sub-options OR Districts
     if (currentLevel === 1) {
         const selectedWork = path[0];
-        // Filter districts that have ROs the user has access to
+
+        // Special handling for User Management sub-menu
+        if (selectedWork.id === 'USER_MANAGEMENT') {
+            return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                    <DataCard
+                        title="Create User"
+                        iconName="UserPlus"
+                        color="indigo"
+                        onClick={() => {
+                            window.location.href = '/user-management/create';
+                        }}
+                    />
+                    <DataCard
+                        title="Manage User"
+                        iconName="Users"
+                        color="teal"
+                        onClick={() => {
+                            pushToPath({ id: 'MANAGE_USER_LIST', name: 'Manage User', type: 'MANAGEMENT' });
+                        }}
+                    />
+                </div>
+            );
+        }
+
+        // Standard District Selection (Level 1)
         const filteredDistricts = districts.filter(d =>
-            d.ros.some((ro: any) => accessRO.includes(ro.roCode))
+            d.ros.some((ro: any) => accessRO.includes(ro._id) || accessRO.includes(ro.roCode))
         );
 
         return (
@@ -59,13 +84,38 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
         );
     }
 
-    // Level 2: RO Cards
+    // Level 2: District Selection (For Work OR Manage User)
     if (currentLevel === 2) {
-        const selectedDistrict = path[1]?.data;
+        const rootWork = path[0];
+        const subWork = path[1];
+
+        // Filter districts that have ROs the user has access to
+        const filteredDistricts = districts.filter(d =>
+            d.ros.some((ro: any) => accessRO.includes(ro._id) || accessRO.includes(ro.roCode))
+        );
+
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                {filteredDistricts.map((d) => (
+                    <DataCard
+                        key={d.districtCode}
+                        title={d.districtName}
+                        subtitle={`Code: ${d.districtCode} | ${d.ros.length} ROs`}
+                        iconName="MapPin"
+                        color="green"
+                        onClick={() => pushToPath({ id: d.districtCode, name: d.districtName, type: 'DISTRICT', data: d })}
+                    />
+                ))}
+            </div>
+        );
+    }
+
+    // Level 3: RO Selection
+    if (currentLevel === 3) {
+        const selectedDistrict = path[2]?.data;
         if (!selectedDistrict) return <div>Error: District not found</div>;
 
-        // Filter ROs that the user has specific permission for
-        const allowedROs = selectedDistrict.ros.filter((ro: any) => accessRO.includes(ro.roCode));
+        const allowedROs = selectedDistrict.ros.filter((ro: any) => accessRO.includes(ro._id) || accessRO.includes(ro.roCode));
 
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
@@ -77,11 +127,15 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
                         iconName="Building2"
                         color="purple"
                         onClick={() => {
-                            // Final level reached - could navigate to a specific page or show more details
-                            const workCode = path[0].id;
-                            const config = MenuConfig[workCode];
-                            const finalPath = `${config.path}?district=${selectedDistrict.districtCode}&ro=${ro.roCode}`;
-                            window.location.href = finalPath;
+                            const isManageFlow = path[1]?.id === 'MANAGE_USER_LIST';
+                            if (isManageFlow) {
+                                window.location.href = `/user-management/list?roId=${ro._id}&roName=${ro.roName}`;
+                            } else {
+                                const workCode = path[0].id;
+                                const config = MenuConfig[workCode];
+                                const finalPath = `${config.path}?district=${selectedDistrict.districtCode}&ro=${ro.roCode}`;
+                                window.location.href = finalPath;
+                            }
                         }}
                     />
                 ))}
@@ -89,5 +143,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
         );
     }
 
+
     return null;
 };
+

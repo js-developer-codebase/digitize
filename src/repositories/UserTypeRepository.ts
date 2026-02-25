@@ -10,9 +10,23 @@ export class UserTypeRepository {
         return newUserType.save();
     }
 
+    async findById(id: string): Promise<IUserType | null> {
+        return UserType.findById(id);
+    }
+
+    async findManyByTypes(types: string[]): Promise<IUserType[]> {
+        return UserType.find({ type: { $in: types } });
+    }
+
+    async findAll(): Promise<IUserType[]> {
+        return UserType.find();
+    }
+
     async countDocuments(): Promise<number> {
+
         return UserType.countDocuments();
     }
 }
 
 export const userTypeRepository = new UserTypeRepository();
+

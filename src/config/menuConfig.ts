@@ -35,5 +35,11 @@ export const MenuConfig: Record<string, MenuItem> = {
         path: '/work/deed-control',
         icon: 'ShieldCheck',
     },
+    'USER_MANAGEMENT': {
+        name: 'User Management',
+        path: '/user-management',
+        icon: 'Users',
+    },
+
     // Add more mappings as per stageEnumChoices if needed
 };

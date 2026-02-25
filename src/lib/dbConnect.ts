@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 import '@/models/User';
 import '@/models/UserType';
 import '@/models/District';
+import '@/models/RO';
 import '@/models/Batch';
+
 import '@/models/DeedRecord';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/digitize';
