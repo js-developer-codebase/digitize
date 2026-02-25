@@ -23,8 +23,12 @@ export class UserRepository {
         return User.find({ isDeleted: { $ne: true } }).populate('userType');
     }
 
-    async find(filter: any): Promise<IUser[]> {
-        return User.find({ ...filter, isDeleted: { $ne: true } }).populate('userType');
+    async find(filter: any, limit: number = 20, skip: number = 0): Promise<IUser[]> {
+        return User.find({ ...filter, isDeleted: { $ne: true } })
+            .populate('userType')
+            .limit(limit)
+            .skip(skip)
+            .sort({ createdAt: -1 }); // Sort by newest first
     }
 
     async softDelete(id: string): Promise<IUser | null> {

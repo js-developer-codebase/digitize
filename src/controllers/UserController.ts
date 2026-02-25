@@ -49,7 +49,7 @@ export class UserController {
         return newUser;
     }
 
-    async getUsers(reqUser: any, roId?: string) {
+    async getUsers(reqUser: any, roId?: string, search?: string, limit: number = 20, page: number = 1) {
         const creatorType = await userTypeRepository.findById(reqUser.userType);
         if (!creatorType) {
             throw new Error('Unauthorized');
@@ -74,7 +74,17 @@ export class UserController {
             filter.accessRO = { $in: reqUser.accessRO };
         }
 
-        return userRepository.find(filter);
+        // Global server-side search
+        if (search) {
+            const searchRegex = { $regex: search, $options: 'i' };
+            filter.$or = [
+                { name: searchRegex },
+                { email: searchRegex }
+            ];
+        }
+
+        const skip = (page - 1) * limit;
+        return userRepository.find(filter, limit, skip);
     }
 
     async getUserById(reqUser: any, targetUserId: string) {

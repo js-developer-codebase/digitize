@@ -29,13 +29,16 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const roId = searchParams.get('roId');
     const userId = searchParams.get('id');
+    const search = searchParams.get('search') || undefined;
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
 
     try {
         if (userId) {
             const userDetail = await userController.getUserById(user, userId);
             return NextResponse.json(userDetail);
         }
-        const users = await userController.getUsers(user, roId || undefined);
+        const users = await userController.getUsers(user, roId || undefined, search, limit, page);
         return NextResponse.json(users);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 403 });

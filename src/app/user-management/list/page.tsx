@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Users,
@@ -15,9 +15,34 @@ import {
     CheckCircle2,
     Edit2,
     X,
-    AlertTriangle
+    AlertTriangle,
+    ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
+
+// Skeleton Loader Component
+const UserRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-6 py-5">
+            <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
+                <div className="space-y-2">
+                    <div className="h-4 w-32 bg-zinc-200 dark:bg-zinc-800 rounded" />
+                    <div className="h-3 w-48 bg-zinc-100 dark:bg-zinc-800/50 rounded" />
+                </div>
+            </div>
+        </td>
+        <td className="px-6 py-5">
+            <div className="h-6 w-20 bg-zinc-100 dark:bg-zinc-800 rounded-full" />
+        </td>
+        <td className="px-6 py-5 text-right">
+            <div className="flex justify-end gap-2">
+                <div className="w-8 h-8 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+                <div className="w-8 h-8 bg-zinc-100 dark:bg-zinc-800 rounded-lg" />
+            </div>
+        </td>
+    </tr>
+);
 
 function ManageUsersContent() {
     const searchParams = useSearchParams();
@@ -27,8 +52,15 @@ function ManageUsersContent() {
 
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [fetchingMore, setFetchingMore] = useState(false);
     const [error, setError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const observer = useRef<IntersectionObserver | null>(null);
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -36,22 +68,65 @@ function ManageUsersContent() {
     const [deleteInput, setDeleteInput] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Debounce search input
     useEffect(() => {
-        const fetchUsers = async () => {
-            if (!roId) return;
-            try {
-                const res = await fetch(`/api/users?roId=${roId}`);
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Fetch users logic
+    const fetchUsers = useCallback(async (pageNum: number, searchVal: string, isInitial: boolean = false) => {
+        if (!roId) return;
+
+        if (isInitial) setLoading(true);
+        else setFetchingMore(true);
+
+        try {
+            const res = await fetch(`/api/users?roId=${roId}&page=${pageNum}&search=${searchVal}&limit=20`);
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+
+            if (isInitial) {
                 setUsers(data);
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
+            } else {
+                setUsers(prev => [...prev, ...data]);
             }
-        };
-        fetchUsers();
+
+            setHasMore(data.length === 20);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+            setFetchingMore(false);
+        }
     }, [roId]);
+
+    // Effect for search and initial load
+    useEffect(() => {
+        setPage(1);
+        fetchUsers(1, debouncedSearch, true);
+    }, [debouncedSearch, fetchUsers]);
+
+    // Infinite scroll observer
+    const lastUserElementRef = useCallback((node: any) => {
+        if (loading || fetchingMore) return;
+        if (observer.current) observer.current.disconnect();
+
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasMore) {
+                setPage(prevPage => {
+                    const nextPage = prevPage + 1;
+                    fetchUsers(nextPage, debouncedSearch);
+                    return nextPage;
+                });
+            }
+        });
+
+        if (node) observer.current.observe(node);
+    }, [loading, fetchingMore, hasMore, fetchUsers, debouncedSearch]);
 
     const openDeleteModal = (user: any) => {
         setUserToDelete(user);
@@ -85,13 +160,8 @@ function ManageUsersContent() {
         }
     };
 
-    const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-black p-6 md:p-12 font-sans">
+        <div className="min-h-screen bg-zinc-50 dark:bg-black p-6 md:p-12 font-sans overflow-x-hidden">
             <div className="max-w-6xl mx-auto space-y-8">
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div className="space-y-4">
@@ -111,89 +181,110 @@ function ManageUsersContent() {
                     </div>
 
                     <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                        <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${searchTerm ? 'text-teal-500' : 'text-zinc-400'}`} size={18} />
                         <input
                             type="text"
-                            placeholder="Search by name or email..."
-                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                            placeholder="Global Search (Entire DB)..."
+                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
+                        {debouncedSearch !== searchTerm && (
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                <Loader2 size={16} className="animate-spin text-teal-500" />
+                            </div>
+                        )}
                     </div>
                 </header>
 
-                <main className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500">
-                    {loading ? (
-                        <div className="p-20 flex flex-col items-center justify-center text-zinc-400 gap-4">
-                            <Loader2 className="animate-spin text-teal-600" size={40} />
-                            <p className="font-medium">Acquiring user list...</p>
-                        </div>
-                    ) : filteredUsers.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">User Details</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Role</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {filteredUsers.map((u) => (
-                                        <tr key={u._id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors group">
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-zinc-500 group-hover:scale-110 transition-transform">
-                                                        <User size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-zinc-900 dark:text-white">{u.name}</div>
-                                                        <div className="text-sm text-zinc-500 flex items-center gap-1">
-                                                            <Mail size={12} />
-                                                            {u.email}
+                <main className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500 min-h-[400px]">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                                    <th className="px-6 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">User Details</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">Role</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                {loading ? (
+                                    Array.from({ length: 5 }).map((_, i) => <UserRowSkeleton key={i} />)
+                                ) : users.length > 0 ? (
+                                    <>
+                                        {users.map((u, index) => (
+                                            <tr
+                                                key={u._id}
+                                                ref={index === users.length - 1 ? lastUserElementRef : null}
+                                                className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors group"
+                                            >
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-zinc-500 group-hover:scale-110 transition-transform">
+                                                            <User size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-zinc-900 dark:text-white">{u.name}</div>
+                                                            <div className="text-sm text-zinc-500 flex items-center gap-1">
+                                                                <Mail size={12} />
+                                                                {u.email}
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-full text-xs font-bold">
+                                                        <Shield size={12} />
+                                                        {(u.userType as any).type}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-5 text-right">
+                                                    <div className="flex items-center justify-end gap-2 text-zinc-400">
+                                                        <Link
+                                                            href={`/user-management/edit/${u._id}`}
+                                                            className="p-2 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                                                            title="Edit User"
+                                                        >
+                                                            <Edit2 size={18} />
+                                                        </Link>
+                                                        <button
+                                                            onClick={() => openDeleteModal(u)}
+                                                            className="p-2 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                                            title="Secure Delete"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {fetchingMore && Array.from({ length: 3 }).map((_, i) => <UserRowSkeleton key={`more-${i}`} />)}
+                                    </>
+                                ) : (
+                                    <tr>
+                                        <td colSpan={3} className="p-20 text-center">
+                                            <div className="flex flex-col items-center justify-center text-zinc-400 gap-4">
+                                                <Users size={60} className="opacity-10" />
+                                                <div>
+                                                    <p className="text-xl font-bold">No Users Found</p>
+                                                    <p className="text-sm">We couldn't find any users matching your criteria.</p>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-full text-xs font-bold">
-                                                    <Shield size={12} />
-                                                    {(u.userType as any).type}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Link
-                                                        href={`/user-management/edit/${u._id}`}
-                                                        className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
-                                                        title="Edit User"
-                                                    >
-                                                        <Edit2 size={18} />
-                                                    </Link>
-                                                    <button
-                                                        onClick={() => openDeleteModal(u)}
-                                                        className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                                                        title="Secure Delete"
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <div className="p-20 flex flex-col items-center justify-center text-zinc-400 gap-4">
-                            <Users size={60} className="opacity-10" />
-                            <div className="text-center">
-                                <p className="text-xl font-bold">No Users Found</p>
-                                <p className="text-sm">We couldn't find any active users matching your criteria in this RO.</p>
-                            </div>
-                        </div>
-                    )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </main>
+
+                {!loading && !hasMore && users.length > 0 && (
+                    <div className="text-center py-8">
+                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800/50 px-4 py-2 rounded-full border border-zinc-200 dark:border-zinc-800">
+                            You've reached the end of the line
+                        </span>
+                    </div>
+                )}
 
                 {error && (
                     <div className="p-4 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-2xl flex items-center gap-3 border border-red-200 dark:border-red-800">
@@ -220,7 +311,7 @@ function ManageUsersContent() {
                             <div className="space-y-2">
                                 <h3 className="text-2xl font-black tracking-tight">Secure Deletion</h3>
                                 <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
-                                    You are about to soft-delete <span className="font-bold text-zinc-900 dark:text-white">{userToDelete?.name}</span>.
+                                    You are about to soft-delete <span className="font-bold text-zinc-900 dark:text-white">{userToDelete?.name}</span>?
                                     This user will no longer have access to the system.
                                 </p>
                             </div>
