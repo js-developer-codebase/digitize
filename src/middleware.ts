@@ -11,8 +11,7 @@ export async function middleware(request: NextRequest) {
     // Define public routes
     const isPublicRoute =
         pathname === '/login' ||
-        pathname.startsWith('/api/auth/login') ||
-        pathname.startsWith('/api/auth/verify-otp') ||
+        pathname.startsWith('/api/auth/') ||
         pathname.startsWith('/api/setup') ||
         pathname.startsWith('/_next') ||
         pathname === '/favicon.ico';
@@ -50,5 +49,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)', '/api/:path*'],
+    matcher: [
+        /*
+         * Match all request paths except for the ones starting with:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * - public folder files (e.g. svg, png, etc.)
+         */
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    ],
 };

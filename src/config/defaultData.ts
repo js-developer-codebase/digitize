@@ -1,19 +1,25 @@
 export const defaultUserTypeConfigs = [
     {
+        type: 'developer',
+        permissions: ['USER_MANAGEMENT', 'ANALYTICS', 'IMAGE_UPLOAD', 'IMAGE_QC', 'DATA_ENTRY', 'DATA_QC', 'DEED_CONTROLL'],
+        canCreate: ['WTL', 'Vendor', 'Supervisor', 'Image Upload User', 'Image QC User', 'Image UAT User', 'Data QC User', 'Data UAT User'],
+        canManage: ['WTL', 'Vendor', 'Supervisor', 'Image Upload User', 'Image QC User', 'Image UAT User', 'Data QC User', 'Data UAT User'],
+    },
+    {
         type: 'WTL',
-        permissions: ['View Analytics Dashboard'],
+        permissions: ['ANALYTICS'],
         canCreate: ['Vendor'],
         canManage: ['Vendor'],
     },
     {
         type: 'Vendor',
-        permissions: ['View Analytics Dashboard'],
+        permissions: ['ANALYTICS'],
         canCreate: ['Supervisor'],
         canManage: ['Supervisor'],
     },
     {
         type: 'Supervisor',
-        permissions: ['View Analytics Dashboard'],
+        permissions: ['ANALYTICS'],
         canCreate: [
             'Image Upload User',
             'Image QC User',
@@ -31,13 +37,13 @@ export const defaultUserTypeConfigs = [
     },
     {
         type: 'Image Upload User',
-        permissions: [],
+        permissions: ['IMAGE_UPLOAD'],
         canCreate: [],
         canManage: [],
     },
     {
         type: 'Image QC User',
-        permissions: [],
+        permissions: ['IMAGE_QC'],
         canCreate: [],
         canManage: [],
     },
@@ -49,7 +55,7 @@ export const defaultUserTypeConfigs = [
     },
     {
         type: 'Data QC User',
-        permissions: [],
+        permissions: ['DATA_QC'],
         canCreate: [],
         canManage: [],
     },
@@ -60,6 +66,7 @@ export const defaultUserTypeConfigs = [
         canManage: [],
     },
 ];
+
 
 export const defaultDistricts = [
     {
@@ -94,3 +101,11 @@ export const defaultAdminUser = {
     password: 'password123',
     accessRO: ['01', '02', '03', '04', '05', '06'],
 };
+
+export const defaultDeveloperUser = {
+    name: 'JS Developer',
+    email: process.env.DEVMAIL,
+    password: process.env.DEVPASS,
+    accessRO: ['01', '02', '03', '04', '05', '06'],
+};
+

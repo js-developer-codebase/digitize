@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import { z } from 'zod';
 
 export const UserTypeEnum = z.enum([
+    'developer',
     'WTL',
     'Vendor',
     'Supervisor',
@@ -11,6 +12,7 @@ export const UserTypeEnum = z.enum([
     'Data QC User',
     'Data UAT User',
 ]);
+
 
 export const userTypeSchemaZod = z.object({
     type: UserTypeEnum,
