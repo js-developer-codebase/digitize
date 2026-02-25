@@ -40,6 +40,21 @@ export const MenuConfig: Record<string, MenuItem> = {
         path: '/user-management',
         icon: 'Users',
     },
+    'BATCH_CREATION': {
+        name: 'Create Batch',
+        path: '/work/batch-creation',
+        icon: 'PackagePlus',
+    },
+    'BATCH_MANAGEMENT': {
+        name: 'Manage Batch',
+        path: '/work/batch-management',
+        icon: 'Database',
+    },
+    'DEED_CREATION': {
+        name: 'Create Deed',
+        path: '/work/deed-creation',
+        icon: 'FilePlus',
+    },
 
     // Add more mappings as per stageEnumChoices if needed
 };
