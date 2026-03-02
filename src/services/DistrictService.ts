@@ -10,14 +10,15 @@ export class DistrictService {
         // For each district, fetch its ROs from the new RO collection
         const enrichedDistricts = await Promise.all(
             districts.map(async (d) => {
-                const ros = await roRepository.findByDistrictCode(d.districtCode);
+                const ros = await roRepository.findByDistrictId(String(d._id));
                 return {
                     ...d.toObject(),
                     ros: ros.map(ro => ({
                         _id: ro._id,
                         roName: ro.roName,
                         roCode: ro.roCode,
-                        districtCode: ro.districtCode
+                        districtCode: ro.districtCode,
+                        districtId: ro.districtId
                     }))
                 };
             })

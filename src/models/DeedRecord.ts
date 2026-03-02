@@ -12,6 +12,11 @@ export const deedRecordSchemaZod = z.object({
     pageFrom: z.number().int().min(1),
     pageTo: z.number().int().min(1),
     sequence: z.number().int().default(1),
+    exceptionCode: z.string().optional().or(z.null()),
+    districtId: z.string().or(z.any()), // ObjectId ref District
+    roId: z.string().or(z.any()), // ObjectId ref RO
+    bookType: z.string().length(1).optional(),
+    volumeYear: z.string().length(4).optional(),
     document: z.array(documentImageSchemaZod).default([]),
     pdfUrl: z.string().url('Invalid PDF URL').optional().or(z.literal('')),
 });
@@ -33,6 +38,11 @@ const DeedRecordSchema = new Schema<IDeedRecord>(
         pageFrom: { type: Number, required: true },
         pageTo: { type: Number, required: true },
         sequence: { type: Number, default: 1 },
+        exceptionCode: { type: String, default: null },
+        districtId: { type: Schema.Types.ObjectId, ref: 'District' },
+        roId: { type: Schema.Types.ObjectId, ref: 'RO' },
+        bookType: { type: String },
+        volumeYear: { type: String },
         document: [DocumentImageSchema],
         pdfUrl: { type: String, default: '' },
     },

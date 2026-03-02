@@ -30,8 +30,8 @@ function BatchCreationContent() {
     const searchParams = useSearchParams();
 
     // Params from query string: ?district=CODE&ro=CODE
-    const queryDistrictCode = searchParams.get('district');
-    const queryROCode = searchParams.get('ro');
+    const queryDistrictId = searchParams.get('district');
+    const queryROId = searchParams.get('ro');
 
     const [districts, setDistricts] = useState<any[]>([]);
     const [selectedDistrict, setSelectedDistrict] = useState<string>('');
@@ -61,12 +61,15 @@ function BatchCreationContent() {
             setDistricts(data);
 
             // Auto-select based on query params
-            if (queryDistrictCode) {
-                const foundDist = data.find((d: any) => d.districtCode === queryDistrictCode);
+            if (queryDistrictId) {
+                const foundDist = data.find((d: any) => d._id === queryDistrictId);
                 if (foundDist) {
                     setSelectedDistrict(foundDist._id);
-                    if (queryROCode) {
-                        setSelectedRO(queryROCode);
+                    if (queryROId) {
+                        const foundRO = foundDist.ros.find((r: any) => r._id === queryROId);
+                        if (foundRO) {
+                            setSelectedRO(foundRO._id);
+                        }
                     }
                 }
             }
@@ -84,10 +87,11 @@ function BatchCreationContent() {
         }
 
         const district = districts.find(d => d._id === selectedDistrict);
-        if (!district) return;
+        const ro = district?.ros.find((r: any) => r._id === selectedRO);
+        if (!district || !ro) return;
 
         const dCode = district.districtCode.padStart(2, '0').slice(-2);
-        const rCode = selectedRO.padStart(2, '0').slice(-2);
+        const rCode = ro.roCode.padStart(2, '0').slice(-2);
         const bType = bookType.slice(0, 1);
         const vYear = volumeYear.padStart(4, '0').slice(-4);
         const vCode = volumeCode.padStart(3, '0').slice(-3);
@@ -110,7 +114,7 @@ function BatchCreationContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     districtId: selectedDistrict,
-                    roCode: selectedRO,
+                    roId: selectedRO,
                     bookType,
                     volumeYear,
                     volumeCode,
@@ -139,7 +143,7 @@ function BatchCreationContent() {
     };
 
     const selectedDistrictData = districts.find(d => d._id === selectedDistrict);
-    const isLocked = !!queryDistrictCode && !!queryROCode;
+    const isLocked = !!queryDistrictId && !!queryROId;
 
     if (loading) {
         return (
@@ -241,7 +245,7 @@ function BatchCreationContent() {
                                         >
                                             <option value="">Choose RO</option>
                                             {selectedDistrictData?.ros?.map((ro: any) => (
-                                                <option key={ro._id} value={ro.roCode}>{ro.roName} ({ro.roCode})</option>
+                                                <option key={ro._id} value={ro._id}>{ro.roName} ({ro.roCode})</option>
                                             ))}
                                         </select>
                                         {!isLocked && <ChevronRight size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 rotate-90 text-zinc-400 pointer-events-none" />}
@@ -389,7 +393,9 @@ function BatchCreationContent() {
                                         <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                             <Building2 size={8} /> Office
                                         </div>
-                                        <div className="text-xl font-black text-zinc-800 dark:text-zinc-200">{selectedRO || '--'}</div>
+                                        <div className="text-xl font-black text-zinc-800 dark:text-zinc-200">
+                                            {selectedDistrictData?.ros.find((r: any) => r._id === selectedRO)?.roCode || '--'}
+                                        </div>
                                     </div>
                                     <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800/50">
                                         <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">

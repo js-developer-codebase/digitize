@@ -29,6 +29,17 @@ export class DeedRecordRepository {
     async updatePdfUrl(id: string, pdfUrl: string): Promise<IDeedRecord | null> {
         return DeedRecord.findByIdAndUpdate(id, { pdfUrl }, { new: true });
     }
+
+    async findHighestSequence(deedCode: string): Promise<number> {
+        const result = await DeedRecord.findOne({ deedCode })
+            .sort({ sequence: -1 })
+            .select('sequence');
+        return result ? result.sequence : 0;
+    }
+
+    async findByCodeAndSequence(deedCode: string, sequence: number): Promise<IDeedRecord | null> {
+        return DeedRecord.findOne({ deedCode, sequence });
+    }
 }
 
 export const deedRecordRepository = new DeedRecordRepository();

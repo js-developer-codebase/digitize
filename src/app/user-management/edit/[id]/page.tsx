@@ -85,7 +85,7 @@ export default function EditUserPage() {
                 const userDistrictCodes: string[] = [];
                 dists.forEach((d: any) => {
                     const hasRO = d.ros.some((ro: any) => targetUser.accessRO.includes(ro._id));
-                    if (hasRO) userDistrictCodes.push(d.districtCode);
+                    if (hasRO) userDistrictCodes.push(d._id);
                 });
                 setSelectedDistricts(userDistrictCodes);
 
@@ -101,7 +101,7 @@ export default function EditUserPage() {
 
     useEffect(() => {
         const ros = districts
-            .filter(d => selectedDistricts.includes(d.districtCode))
+            .filter(d => selectedDistricts.includes(d._id))
             .flatMap(d => d.ros || []);
         setAvailableROs(ros);
     }, [selectedDistricts, districts]);
@@ -138,9 +138,9 @@ export default function EditUserPage() {
         }));
     };
 
-    const toggleDistrict = (code: string) => {
+    const toggleDistrict = (id: string) => {
         setSelectedDistricts(prev =>
-            prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
         );
     };
 
@@ -368,10 +368,10 @@ export default function EditUserPage() {
                                             <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {districts.map(dist => (
                                                     <button
-                                                        key={dist.districtCode}
+                                                        key={dist._id}
                                                         type="button"
-                                                        onClick={() => toggleDistrict(dist.districtCode)}
-                                                        className={`p-4 rounded-2xl border-2 transition-all text-center ${selectedDistricts.includes(dist.districtCode)
+                                                        onClick={() => toggleDistrict(dist._id)}
+                                                        className={`p-4 rounded-2xl border-2 transition-all text-center ${selectedDistricts.includes(dist._id)
                                                             ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 text-emerald-600'
                                                             : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-500'
                                                             }`}
