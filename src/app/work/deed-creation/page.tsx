@@ -19,7 +19,8 @@ import {
     Settings2,
     History,
     FileText,
-    AlertTriangle
+    AlertTriangle,
+    Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -57,6 +58,19 @@ function DeedCreationContent() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
+    // Deeds logic
+    const [deeds, setDeeds] = useState<any[]>([]);
+    const [loadingDeeds, setLoadingDeeds] = useState(false);
+    const [deedToDelete, setDeedToDelete] = useState<any>(null);
+
+    // Warning Modal state
+    const [warningData, setWarningData] = useState<{
+        isDuplicate: boolean;
+        existingCount: number;
+        overlaps: any[];
+    } | null>(null);
+    const [showWarningModal, setShowWarningModal] = useState(false);
+
     // Intersection Observer for Infinite Scroll
     const observer = useRef<IntersectionObserver | null>(null);
     const lastBatchElementRef = useCallback((node: HTMLDivElement) => {
@@ -78,21 +92,30 @@ function DeedCreationContent() {
         };
         loadInitial();
 
-        // Load selection from sessionStorage if available
-        const savedDist = sessionStorage.getItem('deed_district');
-        const savedRO = sessionStorage.getItem('deed_ro');
+        // Load selection from query params first, then sessionStorage if available
+        const queryDistrictId = searchParams.get('district');
+        const queryROId = searchParams.get('ro');
+
+        const distToUse = queryDistrictId || sessionStorage.getItem('deed_district');
+        const roToUse = queryROId || sessionStorage.getItem('deed_ro');
+
         // Validate both look like MongoDB ObjectIds (24 hex chars)
         const isValidObjectId = (val: string | null) => val !== null && /^[a-f\d]{24}$/i.test(val);
-        if (isValidObjectId(savedDist) && isValidObjectId(savedRO)) {
-            setSelectedDistrict(savedDist!);
-            setSelectedRO(savedRO!);
+        if (isValidObjectId(distToUse) && isValidObjectId(roToUse)) {
+            setSelectedDistrict(distToUse!);
+            setSelectedRO(roToUse!);
             setIsSelectionConfirmed(true);
+
+            if (queryDistrictId && queryROId) {
+                sessionStorage.setItem('deed_district', queryDistrictId);
+                sessionStorage.setItem('deed_ro', queryROId);
+            }
         } else {
             // Clear stale or legacy values (e.g. old roCode strings)
             sessionStorage.removeItem('deed_district');
             sessionStorage.removeItem('deed_ro');
         }
-    }, []);
+    }, [searchParams]);
 
     const fetchInitialData = async () => {
         try {
@@ -179,6 +202,7 @@ function DeedCreationContent() {
         setIsSelectionConfirmed(false);
         setSelectedBatchId(null);
         setBatches([]);
+        setDeeds([]);
         sessionStorage.removeItem('deed_district');
         sessionStorage.removeItem('deed_ro');
     };
@@ -196,19 +220,48 @@ function DeedCreationContent() {
             setSelectedBatchId(batchId);
             fetchBatches(true);
             setSkip(0);
+            fetchDeeds(batchId);
         } catch (err: any) {
             setError(err.message);
         }
     };
 
-    const handleDeedSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleDeedSubmit = async (e?: React.FormEvent, bypass = false) => {
+        if (e) e.preventDefault();
         if (!selectedBatchId) return;
+
+        const selectedBatch = batches.find(b => b._id === selectedBatchId);
+        if (!selectedBatch) return;
+
+        // Perform check if not bypassing
+        if (!bypass) {
+            try {
+                const checkRes = await fetch('/api/work/deeds/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        batchId: selectedBatchId,
+                        roId: selectedBatch.roId,
+                        bookType: selectedBatch.batchCode.substring(4, 5),
+                        deedCode,
+                        pageFrom: parseInt(pageFrom),
+                        pageTo: parseInt(pageTo),
+                    })
+                });
+                const checkData = await checkRes.json();
+                if (checkData.isDuplicate || checkData.overlaps?.length > 0) {
+                    setWarningData(checkData);
+                    setShowWarningModal(true);
+                    return;
+                }
+            } catch (err) {
+                console.error('Check failed', err);
+            }
+        }
 
         setSubmitting(true);
         setError('');
-
-        const selectedBatch = batches.find(b => b._id === selectedBatchId);
+        setShowWarningModal(false);
 
         try {
             const res = await fetch(`/api/work/deeds/${selectedBatchId}`, {
@@ -235,11 +288,43 @@ function DeedCreationContent() {
             setPageTo('');
             setSelectedException('');
             setTimeout(() => setSuccess(false), 3000);
+            fetchDeeds(selectedBatchId);
         } catch (err: any) {
             setError(err.message);
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const fetchDeeds = async (batchId: string) => {
+        setLoadingDeeds(true);
+        try {
+            const res = await fetch(`/api/work/deeds/${batchId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setDeeds(data || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch deeds', err);
+        } finally {
+            setLoadingDeeds(false);
+        }
+    };
+
+    const confirmDeleteDeed = async () => {
+        if (!deedToDelete) return;
+        try {
+            const res = await fetch(`/api/work/deeds/delete/${deedToDelete._id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete deed');
+            setDeedToDelete(null);
+            if (selectedBatchId) fetchDeeds(selectedBatchId);
+        } catch (err: any) {
+            setError(err.message);
+        }
+    };
+
+    const handleDeleteDeed = (deed: any) => {
+        setDeedToDelete(deed);
     };
 
     const handleCompleteBatch = async () => {
@@ -477,6 +562,7 @@ function DeedCreationContent() {
                                                         maxLength={5}
                                                         value={deedCode}
                                                         onChange={(e) => setDeedCode(e.target.value.replace(/\D/g, ''))}
+                                                        onBlur={() => deedCode && setDeedCode(deedCode.padStart(5, '0'))}
                                                         placeholder="00001"
                                                         className="w-full h-12 px-5 bg-zinc-50 dark:bg-zinc-800/40 border-2 border-zinc-100 dark:border-zinc-800 rounded-xl outline-none font-bold text-base focus:border-indigo-500/50 transition-all placeholder:opacity-30"
                                                     />
@@ -486,20 +572,24 @@ function DeedCreationContent() {
                                                     <div className="space-y-2">
                                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">Page From</label>
                                                         <input
-                                                            type="number"
+                                                            type="text"
                                                             required
+                                                            maxLength={4}
                                                             value={pageFrom}
-                                                            onChange={(e) => setPageFrom(e.target.value)}
+                                                            onChange={(e) => setPageFrom(e.target.value.replace(/\D/g, ''))}
+                                                            onBlur={() => pageFrom && setPageFrom(pageFrom.padStart(4, '0'))}
                                                             className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-800/40 border-2 border-zinc-100 dark:border-zinc-800 rounded-xl outline-none font-bold text-center focus:border-indigo-500/50 transition-all"
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
                                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 ml-1">Page To</label>
                                                         <input
-                                                            type="number"
+                                                            type="text"
                                                             required
+                                                            maxLength={4}
                                                             value={pageTo}
-                                                            onChange={(e) => setPageTo(e.target.value)}
+                                                            onChange={(e) => setPageTo(e.target.value.replace(/\D/g, ''))}
+                                                            onBlur={() => pageTo && setPageTo(pageTo.padStart(4, '0'))}
                                                             className="w-full h-12 px-4 bg-zinc-50 dark:bg-zinc-800/40 border-2 border-zinc-100 dark:border-zinc-800 rounded-xl outline-none font-bold text-center focus:border-indigo-500/50 transition-all"
                                                         />
                                                     </div>
@@ -566,6 +656,40 @@ function DeedCreationContent() {
                                             <span className="text-[10px] font-black uppercase tracking-tight">{error}</span>
                                         </div>
                                     )}
+
+                                    <div className="mt-8 border-t border-zinc-200 dark:border-zinc-800 pt-8">
+                                        <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight italic mb-6">Added Deeds</h3>
+                                        {loadingDeeds ? (
+                                            <div className="flex justify-center p-4"><Loader2 className="animate-spin text-zinc-400" /></div>
+                                        ) : deeds.length === 0 ? (
+                                            <div className="text-center py-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">No deeds added yet</div>
+                                        ) : (
+                                            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                                                {deeds.map((deed) => (
+                                                    <div key={deed._id} className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/50 rounded-2xl group hover:border-indigo-500/30 transition-all">
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">{deed.deedCode}</span>
+                                                                <span className="text-[9px] font-bold uppercase text-zinc-400">Seq: {deed.sequence}</span>
+                                                            </div>
+                                                            <div className="text-[10px] font-bold text-zinc-500">
+                                                                Pages: {deed.pageFrom} - {deed.pageTo}
+                                                                {deed.exceptionCode && <span className="ml-2 text-amber-500">• Exception: {deed.exceptionCode}</span>}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteDeed(deed)}
+                                                            className="p-2 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
+                                                            title="Delete Deed"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-[2rem] p-20 flex flex-col items-center justify-center text-center space-y-6">
@@ -582,6 +706,92 @@ function DeedCreationContent() {
                     </div>
                 )}
             </div>
+
+            {/* Warning Modal */}
+            {showWarningModal && warningData && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-8 animate-in zoom-in-95 duration-300">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="w-20 h-20 rounded-3xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500 shadow-inner">
+                                <AlertTriangle size={40} strokeWidth={2.5} />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tighter italic">Warning: Potential Duplicate</h3>
+                                <p className="text-[12px] font-bold text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto leading-relaxed">
+                                    {warningData.isDuplicate
+                                        ? `Found ${warningData.existingCount} existing record(s) with deed code ${deedCode} for this office.`
+                                        : "Potential page range overlap detected."}
+                                </p>
+                            </div>
+                        </div>
+
+                        {warningData.overlaps.length > 0 && (
+                            <div className="space-y-4 bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800/50">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Overlapping Records</div>
+                                <div className="space-y-3 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                                    {warningData.overlaps.map((overlap: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                                            <div className="space-y-0.5">
+                                                <div className="text-[10px] font-black text-indigo-600 dark:text-indigo-400">
+                                                    Deed: {overlap.deedCode} (Batch: {overlap.batchCode})
+                                                </div>
+                                                <div className="text-[9px] font-bold text-zinc-500">Pages: {overlap.pageFrom}-{overlap.pageTo} • Seq: {overlap.sequence}</div>
+                                            </div>
+                                            <AlertCircle size={14} className="text-amber-500" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            <button
+                                onClick={() => setShowWarningModal(false)}
+                                className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all"
+                            >
+                                Review Entry
+                            </button>
+                            <button
+                                onClick={() => handleDeedSubmit(undefined, true)}
+                                className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <PlusCircle size={14} /> Proceed Anyway
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Delete Modal */}
+            {deedToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 md:p-8 shadow-2xl border border-zinc-200 dark:border-zinc-800 space-y-6 animate-in zoom-in-95 duration-200">
+                        <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-2 text-red-500">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tighter">Delete Deed</h3>
+                            <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
+                                Are you sure you want to delete deed entry <span className="text-zinc-900 dark:text-zinc-200 font-black">{deedToDelete.deedCode}</span>? This action cannot be undone.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <button
+                                onClick={() => setDeedToDelete(null)}
+                                className="w-full py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeleteDeed}
+                                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-red-500/20 transition-all active:scale-95"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar {

@@ -33,7 +33,7 @@ const DocumentImageSchema = new Schema(
 
 const DeedRecordSchema = new Schema<IDeedRecord>(
     {
-        deedCode: { type: String, required: true, unique: true },
+        deedCode: { type: String, required: true },
         batchId: { type: Schema.Types.ObjectId, ref: 'Batch', required: true },
         pageFrom: { type: Number, required: true },
         pageTo: { type: Number, required: true },
@@ -48,6 +48,8 @@ const DeedRecordSchema = new Schema<IDeedRecord>(
     },
     { timestamps: true }
 );
+
+DeedRecordSchema.index({ deedCode: 1, sequence: 1 }, { unique: true });
 
 const DeedRecord =
     mongoose.models.DeedRecord ||

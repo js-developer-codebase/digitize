@@ -40,6 +40,13 @@ export class DeedRecordService {
         return await deedRecordRepository.findByBatch(batchId);
     }
 
+    async deleteDeed(deedId: string) {
+        await dbConnect();
+        const deleted = await deedRecordRepository.delete(deedId);
+        if (!deleted) throw new Error('Deed not found');
+        return { success: true };
+    }
+
     async completeBatch(batchId: string) {
         await dbConnect();
         const batch = await batchRepository.findById(batchId);
@@ -52,6 +59,46 @@ export class DeedRecordService {
         await batchRepository.updateLocking(batchId, null, null);
 
         return { success: true };
+    }
+
+    async checkDeedStatus(data: {
+        batchId: string;
+        roId: string;
+        bookType?: string;
+        deedCode: string;
+        pageFrom: number;
+        pageTo: number;
+    }) {
+        await dbConnect();
+
+        // 1. Duplicate Check: Across the entire RO & BookType, ignoring year (as per "not enter year")
+        const duplicateDeeds = await deedRecordRepository.findExistingRecords({
+            roId: data.roId,
+            bookType: data.bookType,
+            deedCode: data.deedCode,
+        });
+
+        // 2. Overlap Check: Restricted to the current batch (as per "overlap is in the batch")
+        const batchDeeds = await deedRecordRepository.findByBatch(data.batchId);
+
+        const overlaps = batchDeeds.filter(deed => {
+            return (data.pageFrom >= deed.pageFrom && data.pageFrom <= deed.pageTo) ||
+                (data.pageTo >= deed.pageFrom && data.pageTo <= deed.pageTo) ||
+                (deed.pageFrom >= data.pageFrom && deed.pageFrom <= data.pageTo);
+        });
+
+        return {
+            isDuplicate: duplicateDeeds.length > 0,
+            existingCount: duplicateDeeds.length,
+            overlaps: overlaps.map(o => ({
+                id: o._id,
+                deedCode: o.deedCode,
+                batchCode: (o.batchId as any)?.batchCode || 'Current',
+                pageFrom: o.pageFrom,
+                pageTo: o.pageTo,
+                sequence: o.sequence
+            }))
+        };
     }
 }
 
