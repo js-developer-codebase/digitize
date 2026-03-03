@@ -1,6 +1,7 @@
 import { batchRepository } from '../repositories/BatchRepository';
 import { districtRepository } from '../repositories/DistrictRepository';
 import { roRepository } from '../repositories/RORepository';
+import { deedRecordRepository } from '../repositories/DeedRecordRepository';
 import dbConnect from '../lib/dbConnect';
 import mongoose from 'mongoose';
 
@@ -48,6 +49,7 @@ export class BatchService {
             volumeCode: data.volumeCode,
             createdBy: data.createdBy,
             stage: 'deedcontroll',
+            isDeleted: false
         });
     }
 
@@ -93,6 +95,45 @@ export class BatchService {
     async releaseBatch(batchId: string) {
         await dbConnect();
         return await batchRepository.updateLocking(batchId, null, null);
+    }
+
+    async getAllBatches(params: {
+        search?: string;
+        roId?: string;
+        skip?: number;
+    }) {
+        await dbConnect();
+        const { search, roId, skip = 0 } = params;
+
+        return await batchRepository.findAllBatches({
+            search,
+            roId,
+            skip,
+            limit: 20
+        });
+    }
+
+    async softDeleteBatch(batchId: string) {
+        await dbConnect();
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const batch = await batchRepository.softDelete(batchId, session);
+            if (!batch) {
+                throw new Error('Batch not found');
+            }
+
+            await deedRecordRepository.softDeleteByBatchId(batchId, session);
+
+            await session.commitTransaction();
+            return batch;
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
     }
 }
 

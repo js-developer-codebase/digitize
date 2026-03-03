@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import DeedRecord, { IDeedRecord } from '../models/DeedRecord';
 import Batch from '../models/Batch';
 
@@ -7,11 +8,14 @@ export class DeedRecordRepository {
     }
 
     async findByBatch(batchId: string): Promise<IDeedRecord[]> {
-        return DeedRecord.find({ batchId }).sort({ createdAt: -1 });
+        return DeedRecord.find({ batchId, isDeleted: { $ne: true } }).sort({ createdAt: -1 });
     }
 
     async create(deedData: Partial<IDeedRecord>): Promise<IDeedRecord> {
-        const newDeed = new DeedRecord(deedData);
+        const newDeed = new DeedRecord({
+            ...deedData,
+            isDeleted: deedData.isDeleted ?? false
+        });
         return newDeed.save();
     }
 
@@ -53,13 +57,21 @@ export class DeedRecordRepository {
         deedCode?: string;
     }): Promise<IDeedRecord[]> {
         const { roId, bookType, volumeYear, deedCode } = query;
-        const filter: any = { roId };
+        const filter: any = { roId, isDeleted: { $ne: true } };
 
         if (bookType) filter.bookType = bookType;
         if (volumeYear) filter.volumeYear = volumeYear;
         if (deedCode) filter.deedCode = deedCode;
 
         return DeedRecord.find(filter).populate('batchId');
+    }
+
+    async softDeleteByBatchId(batchId: string, session?: any): Promise<void> {
+        await DeedRecord.updateMany(
+            { batchId: new mongoose.Types.ObjectId(batchId) },
+            { $set: { isDeleted: true } },
+            { session }
+        );
     }
 }
 

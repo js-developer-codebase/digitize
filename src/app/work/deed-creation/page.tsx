@@ -291,6 +291,7 @@ function DeedCreationContent() {
             if (!res.ok) throw new Error(data.error);
 
             setSuccess(true);
+            setDeedCode('');
             setPageFrom('');
             setPageTo('');
             setSelectedExceptions([]);
