@@ -12,8 +12,14 @@ export const deedRecordSchemaZod = z.object({
     pageFrom: z.number().int().min(1),
     pageTo: z.number().int().min(1),
     sequence: z.number().int().default(1),
+    exceptionCodes: z.array(z.string()).default([]),
+    districtId: z.string().or(z.any()), // ObjectId ref District
+    roId: z.string().or(z.any()), // ObjectId ref RO
+    bookType: z.string().length(1).optional(),
+    volumeYear: z.string().length(4).optional(),
     document: z.array(documentImageSchemaZod).default([]),
     pdfUrl: z.string().url('Invalid PDF URL').optional().or(z.literal('')),
+    isDeleted: z.boolean().default(false),
 });
 
 export type IDeedRecord = z.infer<typeof deedRecordSchemaZod> & Document;
@@ -28,17 +34,28 @@ const DocumentImageSchema = new Schema(
 
 const DeedRecordSchema = new Schema<IDeedRecord>(
     {
-        deedCode: { type: String, required: true, unique: true },
+        deedCode: { type: String, required: true },
         batchId: { type: Schema.Types.ObjectId, ref: 'Batch', required: true },
         pageFrom: { type: Number, required: true },
         pageTo: { type: Number, required: true },
         sequence: { type: Number, default: 1 },
+        exceptionCodes: { type: [String], default: [] },
+        districtId: { type: Schema.Types.ObjectId, ref: 'District' },
+        roId: { type: Schema.Types.ObjectId, ref: 'RO' },
+        bookType: { type: String },
+        volumeYear: { type: String },
         document: [DocumentImageSchema],
         pdfUrl: { type: String, default: '' },
+        isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
+DeedRecordSchema.index({ deedCode: 1, sequence: 1 }, { unique: true });
+
+if (process.env.NODE_ENV === 'development') {
+    delete mongoose.models.DeedRecord;
+}
 const DeedRecord =
     mongoose.models.DeedRecord ||
     mongoose.model<IDeedRecord>('DeedRecord', DeedRecordSchema);

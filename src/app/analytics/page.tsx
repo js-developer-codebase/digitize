@@ -7,8 +7,8 @@ import Link from 'next/link';
 
 function AnalyticsContent() {
     const searchParams = useSearchParams();
-    const districtCode = searchParams.get('district');
-    const roCode = searchParams.get('ro');
+    const districtId = searchParams.get('district');
+    const roId = searchParams.get('ro');
     const [names, setNames] = React.useState({ districtName: 'N/A', roName: 'N/A' });
 
     React.useEffect(() => {
@@ -17,9 +17,9 @@ function AnalyticsContent() {
                 const res = await fetch('/api/districts');
                 const districts = await res.json();
 
-                const d = districts.find((item: any) => item.districtCode === districtCode);
+                const d = districts.find((item: any) => item._id === districtId);
                 if (d) {
-                    const r = d.ros.find((item: any) => item.roCode === roCode);
+                    const r = d.ros.find((item: any) => item._id === roId);
                     setNames({
                         districtName: d.districtName,
                         roName: r ? r.roName : 'N/A'
@@ -30,8 +30,8 @@ function AnalyticsContent() {
             }
         };
 
-        if (districtCode) fetchNames();
-    }, [districtCode, roCode]);
+        if (districtId) fetchNames();
+    }, [districtId, roId]);
 
     const truncate = (str: string, max: number) => {
         return str.length > max ? str.substring(0, max) + '...' : str;

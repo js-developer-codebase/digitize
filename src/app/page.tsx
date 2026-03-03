@@ -6,6 +6,7 @@ import TopBar from '@/components/layout/TopBar';
 import DynamicNavbar from '@/components/layout/DynamicNavbar';
 import { LevelViews } from '@/components/dashboard/LevelViews';
 import { useNavigationStore } from '@/store/navigationStore';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function Home() {
   const router = useRouter();
@@ -49,11 +50,35 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-black">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-zinc-500 font-medium">Loading Digitization Workspace...</p>
+      <div className="min-h-screen bg-zinc-50 dark:bg-black font-sans">
+        {/* Skeleton TopBar */}
+        <div className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 z-50 flex items-center justify-between px-6">
+          <Skeleton className="h-8 w-32" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-4 w-24" />
+          </div>
         </div>
+
+        {/* Skeleton Navbar */}
+        <div className="fixed top-16 left-0 right-0 h-14 bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 z-40 flex items-center px-6 gap-8">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+
+        <main className="pt-40 pb-12 px-6 max-w-7xl mx-auto">
+          <div className="mb-12">
+            <Skeleton className="h-10 w-64 mb-4" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-48 rounded-[2rem]" />
+            ))}
+          </div>
+        </main>
       </div>
     );
   }

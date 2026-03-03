@@ -72,38 +72,66 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {filteredDistricts.map((d) => (
                     <DataCard
-                        key={d.districtCode}
+                        key={d._id}
                         title={d.districtName}
                         subtitle={`Code: ${d.districtCode} | ${d.ros.length} ROs`}
                         iconName="MapPin"
                         color="green"
-                        onClick={() => pushToPath({ id: d.districtCode, name: d.districtName, type: 'DISTRICT', data: d })}
+                        onClick={() => pushToPath({ id: d._id, name: d.districtName, type: 'DISTRICT', data: d })}
                     />
                 ))}
             </div>
         );
     }
 
-    // Level 2: District Selection (For Work OR Manage User)
+    // Level 2: Sub-option District Selection OR RO Selection
     if (currentLevel === 2) {
         const rootWork = path[0];
-        const subWork = path[1];
+        const subWorkOrDistrict = path[1];
 
-        // Filter districts that have ROs the user has access to
-        const filteredDistricts = districts.filter(d =>
-            d.ros.some((ro: any) => accessRO.includes(ro._id) || accessRO.includes(ro.roCode))
-        );
+        // If the first level was a sub-menu (like User Management), then Level 2 is District Selection
+        if (rootWork.id === 'USER_MANAGEMENT') {
+            const filteredDistricts = districts.filter(d =>
+                d.ros.some((ro: any) => accessRO.includes(ro._id) || accessRO.includes(ro.roCode))
+            );
+
+            return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                    {filteredDistricts.map((d) => (
+                        <DataCard
+                            key={d._id}
+                            title={d.districtName}
+                            subtitle={`Code: ${d.districtCode} | ${d.ros.length} ROs`}
+                            iconName="MapPin"
+                            color="green"
+                            onClick={() => pushToPath({ id: d._id, name: d.districtName, type: 'DISTRICT', data: d })}
+                        />
+                    ))}
+                </div>
+            );
+        }
+
+        // Otherwise, Level 1 was District Selection, so Level 2 should be RO Selection
+        const selectedDistrict = subWorkOrDistrict.data;
+        if (!selectedDistrict) return <div>Error: District data missing</div>;
+
+        const allowedROs = selectedDistrict.ros.filter((ro: any) => accessRO.includes(ro._id) || accessRO.includes(ro.roCode));
 
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-                {filteredDistricts.map((d) => (
+                {allowedROs.map((ro: any) => (
                     <DataCard
-                        key={d.districtCode}
-                        title={d.districtName}
-                        subtitle={`Code: ${d.districtCode} | ${d.ros.length} ROs`}
-                        iconName="MapPin"
-                        color="green"
-                        onClick={() => pushToPath({ id: d.districtCode, name: d.districtName, type: 'DISTRICT', data: d })}
+                        key={ro._id}
+                        title={ro.roName}
+                        subtitle={`RO Code: ${ro.roCode}`}
+                        iconName="Building2"
+                        color="purple"
+                        onClick={() => {
+                            const workCode = rootWork.id;
+                            const config = MenuConfig[workCode];
+                            const finalPath = `${config.path}?district=${selectedDistrict._id}&ro=${ro._id}`;
+                            window.location.href = finalPath;
+                        }}
                     />
                 ))}
             </div>
@@ -121,7 +149,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {allowedROs.map((ro: any) => (
                     <DataCard
-                        key={ro.roCode}
+                        key={ro._id}
                         title={ro.roName}
                         subtitle={`RO Code: ${ro.roCode}`}
                         iconName="Building2"
@@ -133,7 +161,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
                             } else {
                                 const workCode = path[0].id;
                                 const config = MenuConfig[workCode];
-                                const finalPath = `${config.path}?district=${selectedDistrict.districtCode}&ro=${ro.roCode}`;
+                                const finalPath = `${config.path}?district=${selectedDistrict._id}&ro=${ro._id}`;
                                 window.location.href = finalPath;
                             }
                         }}

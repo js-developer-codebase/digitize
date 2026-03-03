@@ -9,6 +9,10 @@ export class DistrictRepository {
         return District.findOne({ districtCode });
     }
 
+    async findById(id: string): Promise<IDistrict | null> {
+        return District.findById(id);
+    }
+
     async create(districtData: Partial<IDistrict>): Promise<IDistrict> {
         const newDistrict = new District(districtData);
         return newDistrict.save();

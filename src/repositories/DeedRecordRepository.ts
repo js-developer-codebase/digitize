@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import DeedRecord, { IDeedRecord } from '../models/DeedRecord';
 import Batch from '../models/Batch';
 
@@ -7,11 +8,14 @@ export class DeedRecordRepository {
     }
 
     async findByBatch(batchId: string): Promise<IDeedRecord[]> {
-        return DeedRecord.find({ batchId }).sort({ sequence: 1 });
+        return DeedRecord.find({ batchId, isDeleted: { $ne: true } }).sort({ createdAt: -1 });
     }
 
     async create(deedData: Partial<IDeedRecord>): Promise<IDeedRecord> {
-        const newDeed = new DeedRecord(deedData);
+        const newDeed = new DeedRecord({
+            ...deedData,
+            isDeleted: deedData.isDeleted ?? false
+        });
         return newDeed.save();
     }
 
@@ -28,6 +32,46 @@ export class DeedRecordRepository {
 
     async updatePdfUrl(id: string, pdfUrl: string): Promise<IDeedRecord | null> {
         return DeedRecord.findByIdAndUpdate(id, { pdfUrl }, { new: true });
+    }
+
+    async findHighestSequence(deedCode: string): Promise<number> {
+        const result = await DeedRecord.findOne({ deedCode })
+            .sort({ sequence: -1 })
+            .select('sequence');
+        return result ? result.sequence : 0;
+    }
+
+    async findByCodeAndSequence(deedCode: string, sequence: number): Promise<IDeedRecord | null> {
+        return DeedRecord.findOne({ deedCode, sequence });
+    }
+
+    async delete(id: string): Promise<boolean> {
+        const result = await DeedRecord.findByIdAndDelete(id);
+        return !!result;
+    }
+
+    async findExistingRecords(query: {
+        roId: string;
+        bookType?: string;
+        volumeYear?: string;
+        deedCode?: string;
+    }): Promise<IDeedRecord[]> {
+        const { roId, bookType, volumeYear, deedCode } = query;
+        const filter: any = { roId, isDeleted: { $ne: true } };
+
+        if (bookType) filter.bookType = bookType;
+        if (volumeYear) filter.volumeYear = volumeYear;
+        if (deedCode) filter.deedCode = deedCode;
+
+        return DeedRecord.find(filter).populate('batchId');
+    }
+
+    async softDeleteByBatchId(batchId: string, session?: any): Promise<void> {
+        await DeedRecord.updateMany(
+            { batchId: new mongoose.Types.ObjectId(batchId) },
+            { $set: { isDeleted: true } },
+            { session }
+        );
     }
 }
 
