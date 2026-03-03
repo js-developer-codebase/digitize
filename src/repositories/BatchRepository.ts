@@ -19,7 +19,10 @@ export class BatchRepository {
     }
 
     async create(batchData: Partial<IBatch>): Promise<IBatch> {
-        const newBatch = new Batch(batchData);
+        const newBatch = new Batch({
+            ...batchData,
+            isDeleted: batchData.isDeleted ?? false
+        });
         return newBatch.save();
     }
 
@@ -51,7 +54,8 @@ export class BatchRepository {
 
         const matchStage: any = {
             roId: new mongoose.Types.ObjectId(roId),
-            stage: { $in: visibleStages }
+            stage: { $in: visibleStages },
+            isDeleted: { $ne: true }
         };
 
         if (search) {
@@ -106,6 +110,39 @@ export class BatchRepository {
         lockedAt: Date | null
     ): Promise<IBatch | null> {
         return Batch.findByIdAndUpdate(id, { lockedBy, lockedAt }, { new: true });
+    }
+
+    async findAllBatches(params: {
+        search?: string;
+        roId?: string;
+        skip: number;
+        limit: number;
+    }): Promise<IBatch[]> {
+        const { search, roId, skip, limit } = params;
+        const query: any = { isDeleted: { $ne: true } };
+
+        if (roId) {
+            query.roId = roId;
+        }
+
+        if (search) {
+            query.$or = [
+                { batchCode: { $regex: search, $options: 'i' } },
+                { volumeCode: { $regex: search, $options: 'i' } },
+            ];
+        }
+
+        return Batch.find(query)
+            .populate('districtId')
+            .populate('roId')
+            .populate('createdBy', 'name email userType')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+    }
+
+    async softDelete(id: string, session?: mongoose.ClientSession): Promise<IBatch | null> {
+        return Batch.findByIdAndUpdate(id, { isDeleted: true }, { new: true, session });
     }
 }
 

@@ -28,6 +28,7 @@ export const batchSchemaZod = z.object({
     stage: z.enum(stageEnumChoices).default('init'),
     lockedBy: z.string().optional().or(z.null()),
     lockedAt: z.date().optional().or(z.null()),
+    isDeleted: z.boolean().default(false),
 });
 
 export type IBatch = z.infer<typeof batchSchemaZod> & Document;
@@ -50,10 +51,14 @@ const BatchSchema = new Schema<IBatch>(
         },
         lockedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
         lockedAt: { type: Date, default: null },
+        isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
+if (process.env.NODE_ENV === 'development') {
+    delete mongoose.models.Batch;
+}
 const Batch = mongoose.models.Batch || mongoose.model<IBatch>('Batch', BatchSchema);
 
 export default Batch;

@@ -19,6 +19,7 @@ export const deedRecordSchemaZod = z.object({
     volumeYear: z.string().length(4).optional(),
     document: z.array(documentImageSchemaZod).default([]),
     pdfUrl: z.string().url('Invalid PDF URL').optional().or(z.literal('')),
+    isDeleted: z.boolean().default(false),
 });
 
 export type IDeedRecord = z.infer<typeof deedRecordSchemaZod> & Document;
@@ -45,12 +46,16 @@ const DeedRecordSchema = new Schema<IDeedRecord>(
         volumeYear: { type: String },
         document: [DocumentImageSchema],
         pdfUrl: { type: String, default: '' },
+        isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
 DeedRecordSchema.index({ deedCode: 1, sequence: 1 }, { unique: true });
 
+if (process.env.NODE_ENV === 'development') {
+    delete mongoose.models.DeedRecord;
+}
 const DeedRecord =
     mongoose.models.DeedRecord ||
     mongoose.model<IDeedRecord>('DeedRecord', DeedRecordSchema);
