@@ -1,7 +1,7 @@
 export const defaultUserTypeConfigs = [
     {
         type: 'developer',
-        permissions: ['USER_MANAGEMENT', 'ANALYTICS', 'IMAGE_UPLOAD', 'IMAGE_QC', 'DATA_ENTRY', 'DATA_QC', 'DEED_CONTROLL'],
+        permissions: ['USER_MANAGEMENT', 'ANALYTICS', 'IMAGE_UPLOAD', 'IMAGE_QC', 'DATA_ENTRY', 'DATA_QC', 'DEED_CONTROLL', 'BATCH_CREATION', 'BATCH_MANAGEMENT', 'DEED_CREATION'],
         canCreate: ['WTL', 'Vendor', 'Supervisor', 'Image Upload User', 'Image QC User', 'Image UAT User', 'Data QC User', 'Data UAT User'],
         canManage: ['WTL', 'Vendor', 'Supervisor', 'Image Upload User', 'Image QC User', 'Image UAT User', 'Data QC User', 'Data UAT User'],
     },

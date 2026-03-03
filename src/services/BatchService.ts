@@ -1,11 +1,13 @@
 import { batchRepository } from '../repositories/BatchRepository';
 import { districtRepository } from '../repositories/DistrictRepository';
+import { roRepository } from '../repositories/RORepository';
 import dbConnect from '../lib/dbConnect';
+import mongoose from 'mongoose';
 
 export class BatchService {
     async createBatch(data: {
         districtId: string;
-        roCode: string;
+        roId: string;
         bookType: string;
         volumeYear: string;
         volumeCode: string;
@@ -18,8 +20,13 @@ export class BatchService {
             throw new Error('District not found');
         }
 
+        const ro = await roRepository.findById(data.roId);
+        if (!ro) {
+            throw new Error('RO not found');
+        }
+
         const districtCode2 = district.districtCode.padStart(2, '0').slice(-2);
-        const roCode2 = data.roCode.padStart(2, '0').slice(-2);
+        const roCode2 = ro.roCode.padStart(2, '0').slice(-2);
         const bookType1 = data.bookType.slice(0, 1);
         const volumeYear4 = data.volumeYear.padStart(4, '0').slice(-4);
         const volumeCode3 = data.volumeCode.padStart(3, '0').slice(-3);
@@ -34,13 +41,58 @@ export class BatchService {
         return await batchRepository.create({
             batchCode,
             districtId: data.districtId,
-            roCode: data.roCode,
+            roId: data.roId,
+            roCode: ro.roCode,
             bookType: data.bookType,
             volumeYear: data.volumeYear,
             volumeCode: data.volumeCode,
             createdBy: data.createdBy,
-            stage: 'init',
+            stage: 'deedcontroll',
         });
+    }
+
+    async getPaginatedBatches(params: {
+        roId: string;
+        search?: string;
+        skip?: number;
+    }) {
+        await dbConnect();
+        const { roId, search, skip = 0 } = params;
+
+        // Define which stages are visible in the Deed Creation / Batch Selection UI.
+        const visibleStages = ['init', 'deedcontroll', 'data entry'];
+
+        return await batchRepository.findProcessingBatches({
+            roId,
+            visibleStages,
+            search,
+            skip,
+            limit: 20
+        });
+    }
+
+    async lockBatch(batchId: string, userId: string) {
+        await dbConnect();
+        const batch = await batchRepository.findById(batchId);
+        if (!batch) throw new Error('Batch not found');
+
+        const lockExpiry = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        if (
+            batch.lockedBy &&
+            batch.lockedBy.toString() !== userId &&
+            batch.lockedAt &&
+            batch.lockedAt > lockExpiry
+        ) {
+            throw new Error('Batch is locked by another user');
+        }
+
+        return await batchRepository.updateLocking(batchId, userId, new Date());
+    }
+
+    async releaseBatch(batchId: string) {
+        await dbConnect();
+        return await batchRepository.updateLocking(batchId, null, null);
     }
 }
 

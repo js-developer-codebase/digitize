@@ -5,12 +5,16 @@ export class RORepository {
         return RO.find();
     }
 
-    async findByDistrictCode(districtCode: string): Promise<IRO[]> {
-        return RO.find({ districtCode });
+    async findByDistrictId(districtId: string): Promise<IRO[]> {
+        return RO.find({ districtId });
     }
 
     async findByCode(roCode: string): Promise<IRO | null> {
         return RO.findOne({ roCode });
+    }
+
+    async findById(id: string): Promise<IRO | null> {
+        return RO.findById(id);
     }
 
     async create(roData: Partial<IRO>): Promise<IRO> {

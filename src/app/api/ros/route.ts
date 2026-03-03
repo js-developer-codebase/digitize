@@ -6,7 +6,7 @@ export async function GET(req: Request) {
     try {
         await dbConnect();
         const { searchParams } = new URL(req.url);
-        const districtCode = searchParams.get('district');
+        const districtId = searchParams.get('district');
         const ids = searchParams.get('ids')?.split(',');
 
         if (ids) {
@@ -14,8 +14,8 @@ export async function GET(req: Request) {
             return NextResponse.json(ros);
         }
 
-        if (districtCode) {
-            const ros = await roRepository.findByDistrictCode(districtCode);
+        if (districtId) {
+            const ros = await roRepository.findByDistrictId(districtId);
             return NextResponse.json(ros);
         }
 

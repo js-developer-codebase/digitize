@@ -72,12 +72,12 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {filteredDistricts.map((d) => (
                     <DataCard
-                        key={d.districtCode}
+                        key={d._id}
                         title={d.districtName}
                         subtitle={`Code: ${d.districtCode} | ${d.ros.length} ROs`}
                         iconName="MapPin"
                         color="green"
-                        onClick={() => pushToPath({ id: d.districtCode, name: d.districtName, type: 'DISTRICT', data: d })}
+                        onClick={() => pushToPath({ id: d._id, name: d.districtName, type: 'DISTRICT', data: d })}
                     />
                 ))}
             </div>
@@ -99,12 +99,12 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                     {filteredDistricts.map((d) => (
                         <DataCard
-                            key={d.districtCode}
+                            key={d._id}
                             title={d.districtName}
                             subtitle={`Code: ${d.districtCode} | ${d.ros.length} ROs`}
                             iconName="MapPin"
                             color="green"
-                            onClick={() => pushToPath({ id: d.districtCode, name: d.districtName, type: 'DISTRICT', data: d })}
+                            onClick={() => pushToPath({ id: d._id, name: d.districtName, type: 'DISTRICT', data: d })}
                         />
                     ))}
                 </div>
@@ -121,7 +121,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {allowedROs.map((ro: any) => (
                     <DataCard
-                        key={ro.roCode}
+                        key={ro._id}
                         title={ro.roName}
                         subtitle={`RO Code: ${ro.roCode}`}
                         iconName="Building2"
@@ -129,7 +129,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
                         onClick={() => {
                             const workCode = rootWork.id;
                             const config = MenuConfig[workCode];
-                            const finalPath = `${config.path}?district=${selectedDistrict.districtCode}&ro=${ro.roCode}`;
+                            const finalPath = `${config.path}?district=${selectedDistrict._id}&ro=${ro._id}`;
                             window.location.href = finalPath;
                         }}
                     />
@@ -149,7 +149,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {allowedROs.map((ro: any) => (
                     <DataCard
-                        key={ro.roCode}
+                        key={ro._id}
                         title={ro.roName}
                         subtitle={`RO Code: ${ro.roCode}`}
                         iconName="Building2"
@@ -161,7 +161,7 @@ export const LevelViews: React.FC<Props> = ({ userPermissions, districts, access
                             } else {
                                 const workCode = path[0].id;
                                 const config = MenuConfig[workCode];
-                                const finalPath = `${config.path}?district=${selectedDistrict.districtCode}&ro=${ro.roCode}`;
+                                const finalPath = `${config.path}?district=${selectedDistrict._id}&ro=${ro._id}`;
                                 window.location.href = finalPath;
                             }
                         }}

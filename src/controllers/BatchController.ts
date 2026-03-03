@@ -5,9 +5,9 @@ export class BatchController {
     async createBatch(req: NextRequest) {
         try {
             const body = await req.json();
-            const { districtId, roCode, bookType, volumeYear, volumeCode, createdBy } = body;
+            const { districtId, roId, bookType, volumeYear, volumeCode, createdBy } = body;
 
-            if (!districtId || !roCode || !bookType || !volumeYear || !volumeCode || !createdBy) {
+            if (!districtId || !roId || !bookType || !volumeYear || !volumeCode || !createdBy) {
                 return NextResponse.json(
                     { error: 'Missing required fields' },
                     { status: 400 }
@@ -16,7 +16,7 @@ export class BatchController {
 
             const result = await batchService.createBatch({
                 districtId,
-                roCode,
+                roId,
                 bookType,
                 volumeYear,
                 volumeCode,

@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
         pathname === '/login' ||
         pathname.startsWith('/api/auth/') ||
         pathname.startsWith('/api/setup') ||
+        pathname.startsWith('/api/test-db') ||
         pathname.startsWith('/_next') ||
         pathname === '/favicon.ico';
 

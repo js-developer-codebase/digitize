@@ -10,7 +10,7 @@ export type IDistrict = z.infer<typeof districtSchemaZod> & Document;
 
 const DistrictSchema = new Schema<IDistrict>(
     {
-        districtCode: { type: String, required: true, unique: true },
+        districtCode: { type: String, required: true },
         districtName: { type: String, required: true },
     },
     { timestamps: true }

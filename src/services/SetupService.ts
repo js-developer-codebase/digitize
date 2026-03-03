@@ -55,7 +55,8 @@ export class SetupService {
                                 await roRepository.create({
                                     roName: ro.roName,
                                     roCode: ro.roCode,
-                                    districtCode: dist.districtCode
+                                    districtCode: dist.districtCode,
+                                    districtId: dist._id,
                                 });
                                 console.log(`  Migrated RO: ${ro.roName}`);
                             }
@@ -88,7 +89,8 @@ export class SetupService {
                 for (const ro of ros) {
                     await roRepository.create({
                         ...ro,
-                        districtCode: dist.districtCode
+                        districtCode: dist.districtCode,
+                        districtId: (await districtRepository.findByCode(dist.districtCode))?._id,
                     });
                 }
             }
