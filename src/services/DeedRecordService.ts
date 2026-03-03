@@ -9,7 +9,7 @@ export class DeedRecordService {
         deedCode: string;
         pageFrom: number;
         pageTo: number;
-        exceptionCode?: string | null;
+        exceptionCodes?: string[];
         districtId?: string;
         roId?: string;
         bookType?: string;

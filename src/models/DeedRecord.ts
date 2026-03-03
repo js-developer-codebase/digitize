@@ -12,7 +12,7 @@ export const deedRecordSchemaZod = z.object({
     pageFrom: z.number().int().min(1),
     pageTo: z.number().int().min(1),
     sequence: z.number().int().default(1),
-    exceptionCode: z.string().optional().or(z.null()),
+    exceptionCodes: z.array(z.string()).default([]),
     districtId: z.string().or(z.any()), // ObjectId ref District
     roId: z.string().or(z.any()), // ObjectId ref RO
     bookType: z.string().length(1).optional(),
@@ -38,7 +38,7 @@ const DeedRecordSchema = new Schema<IDeedRecord>(
         pageFrom: { type: Number, required: true },
         pageTo: { type: Number, required: true },
         sequence: { type: Number, default: 1 },
-        exceptionCode: { type: String, default: null },
+        exceptionCodes: { type: [String], default: [] },
         districtId: { type: Schema.Types.ObjectId, ref: 'District' },
         roId: { type: Schema.Types.ObjectId, ref: 'RO' },
         bookType: { type: String },
