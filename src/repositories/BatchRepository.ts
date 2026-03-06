@@ -45,18 +45,24 @@ export class BatchRepository {
 
     async findProcessingBatches(params: {
         roId: string;
-        visibleStages: string[];
+        visibleStages?: string[];
+        stage?: string;
         search?: string;
         skip: number;
         limit: number;
     }): Promise<IBatch[]> {
-        const { roId, visibleStages, search, skip, limit } = params;
+        const { roId, visibleStages, stage, search, skip, limit } = params;
 
         const matchStage: any = {
             roId: new mongoose.Types.ObjectId(roId),
-            stage: { $in: visibleStages },
             isDeleted: { $ne: true }
         };
+
+        if (stage) {
+            matchStage.stage = stage;
+        } else if (visibleStages) {
+            matchStage.stage = { $in: visibleStages };
+        }
 
         if (search) {
             matchStage.$and = [
