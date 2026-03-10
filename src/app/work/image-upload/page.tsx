@@ -74,6 +74,10 @@ function ImageUploadContent() {
     const [totalFilesToUpload, setTotalFilesToUpload] = useState(0);
     const [uploadedFilesCount, setUploadedFilesCount] = useState(0);
 
+    // Multi-select State
+    const [selectedImageIndices, setSelectedImageIndices] = useState<number[]>([]);
+    const [focusedDeedId, setFocusedDeedId] = useState<string | null>(null);
+
     // Error/Success
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -212,7 +216,6 @@ function ImageUploadContent() {
         if (!selectedBatch) return;
 
         // Check if folder name matches batch code
-        // webkitRelativePath is like "FolderName/image.jpg"
         const firstFilePath = files[0].webkitRelativePath;
         const folderName = firstFilePath.split('/')[0];
 
@@ -234,15 +237,24 @@ function ImageUploadContent() {
             }
         });
 
-        autoAssignImages(newImages);
+        autoAssignImages(newImages, selectedBatchId);
     };
 
-    const autoAssignImages = (newImages: DeedImage[]) => {
+    const autoAssignImages = (newImages: DeedImage[], batchId: string | null) => {
         const currentDeeds = [...deeds];
         const unassigned: DeedImage[] = [];
 
         newImages.forEach(img => {
-            // Extract numeric part from filename (e.g., "0001.jpg" -> 1)
+            // Priority 1: Assign to focused deed if active
+            if (focusedDeedId) {
+                const targetDeed = currentDeeds.find(d => d._id === focusedDeedId);
+                if (targetDeed) {
+                    targetDeed.images = [...targetDeed.images, img].sort((a, b) => a.name.localeCompare(b.name));
+                    return;
+                }
+            }
+
+            // Priority 2: Extract numeric part from filename (e.g., "0001.jpg" -> 1)
             const match = img.name.match(/\d+/);
             if (match) {
                 const pageNum = parseInt(match[0]);
@@ -271,16 +283,32 @@ function ImageUploadContent() {
         }
     };
 
-    const moveImageToDeed = (deedId: string, imgIndexInUnassigned: number) => {
+    const moveImageToDeed = (deedId: string, imgIndicesInUnassigned: number[]) => {
         const currentDeeds = [...deeds];
         const deed = currentDeeds.find(d => d._id === deedId);
-        const img = unassignedImages[imgIndexInUnassigned];
-        if (deed && img) {
-            deed.images.push(img);
+        if (deed && imgIndicesInUnassigned.length > 0) {
+            const imgs = imgIndicesInUnassigned.map(idx => unassignedImages[idx]);
+            deed.images.push(...imgs);
             deed.images.sort((a, b) => a.name.localeCompare(b.name));
-            setUnassignedImages(prev => prev.filter((_, i) => i !== imgIndexInUnassigned));
+
+            setUnassignedImages(prev => prev.filter((_, i) => !imgIndicesInUnassigned.includes(i)));
+            setSelectedImageIndices([]);
             setDeeds(currentDeeds);
         }
+    };
+
+    const toggleImageSelection = (idx: number) => {
+        setSelectedImageIndices(prev =>
+            prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+        );
+    };
+
+    const selectAllUnassigned = () => {
+        setSelectedImageIndices(unassignedImages.map((_, i) => i));
+    };
+
+    const deselectAllUnassigned = () => {
+        setSelectedImageIndices([]);
     };
 
     const handleSubmit = async () => {
@@ -568,18 +596,31 @@ function ImageUploadContent() {
                                                 {deeds.filter(d => d.images.length === 0).map(deed => (
                                                     <div
                                                         key={deed._id}
-                                                        className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm group hover:border-blue-500/50 transition-all flex items-center justify-between"
+                                                        onClick={() => {
+                                                            if (selectedImageIndices.length > 0) {
+                                                                moveImageToDeed(deed._id, selectedImageIndices);
+                                                            } else {
+                                                                setFocusedDeedId(focusedDeedId === deed._id ? null : deed._id);
+                                                            }
+                                                        }}
+                                                        className={`p-4 rounded-xl border transition-all cursor-pointer group flex items-center justify-between ${focusedDeedId === deed._id
+                                                            ? 'bg-blue-50 border-blue-500 shadow-md ring-1 ring-blue-500'
+                                                            : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 shadow-sm hover:border-blue-500/50'
+                                                            }`}
                                                     >
                                                         <div>
                                                             <div className="text-xs font-black text-zinc-900 dark:text-zinc-100">{deed.deedCode}</div>
                                                             <div className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Pages: {deed.pageFrom}-{deed.pageTo}</div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => {/* Trigger manual selection mode? */ }}
-                                                            className="p-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-400 group-hover:text-blue-500 rounded-lg transition-colors"
-                                                        >
-                                                            <PlusCircle size={14} />
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            {focusedDeedId === deed._id && <div className="text-[8px] font-black text-blue-600 uppercase animate-pulse">Focused</div>}
+                                                            <div
+                                                                className={`p-1.5 rounded-lg transition-colors ${selectedImageIndices.length > 0 ? 'bg-blue-600 text-white' : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-400 group-hover:text-blue-500'
+                                                                    }`}
+                                                            >
+                                                                {selectedImageIndices.length > 0 ? <ArrowRight size={14} /> : <PlusCircle size={14} />}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 ))}
                                                 {deeds.filter(d => d.images.length === 0).length === 0 && (
@@ -597,31 +638,60 @@ function ImageUploadContent() {
                                                 <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
                                                     <ImageIcon size={14} className="text-zinc-400" /> Unassigned Images
                                                 </h3>
-                                                <button onClick={() => setUnassignedImages([])} className="hover:text-red-500 transition-colors"><RefreshCw size={12} /></button>
+                                                <div className="flex items-center gap-3">
+                                                    {unassignedImages.length > 0 && (
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={selectAllUnassigned}
+                                                                className="text-[8px] font-black text-blue-600 uppercase hover:underline"
+                                                            >
+                                                                All
+                                                            </button>
+                                                            <button
+                                                                onClick={deselectAllUnassigned}
+                                                                className="text-[8px] font-black text-zinc-400 uppercase hover:underline"
+                                                            >
+                                                                None
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <button onClick={() => { setUnassignedImages([]); setSelectedImageIndices([]); }} className="hover:text-red-500 transition-colors"><RefreshCw size={12} /></button>
+                                                </div>
                                             </div>
                                             <div className="flex-grow overflow-y-auto p-2 grid grid-cols-2 gap-2 custom-scrollbar">
                                                 {unassignedImages.map((img, idx) => (
-                                                    <div key={idx} className="group relative aspect-square bg-white dark:bg-zinc-900 rounded-xl overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm hover:ring-2 hover:ring-blue-500 transition-all">
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => toggleImageSelection(idx)}
+                                                        className={`group relative aspect-square rounded-xl overflow-hidden border transition-all cursor-pointer ${selectedImageIndices.includes(idx)
+                                                            ? 'ring-4 ring-blue-600 border-blue-600 shadow-lg'
+                                                            : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 shadow-sm hover:border-blue-500'
+                                                            }`}
+                                                    >
                                                         <img src={img.preview} className="w-full h-full object-cover" />
+                                                        {selectedImageIndices.includes(idx) && (
+                                                            <div className="absolute top-2 right-2 bg-blue-600 text-white p-1 rounded-full shadow-md">
+                                                                <CheckCircle2 size={12} />
+                                                            </div>
+                                                        )}
                                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
                                                             <div className="flex flex-col gap-2 w-full">
-                                                                <select
-                                                                    onChange={(e) => moveImageToDeed(e.target.value, idx)}
-                                                                    className="w-full text-[8px] font-black uppercase bg-white text-black p-1 rounded outline-none"
-                                                                    defaultValue=""
-                                                                >
-                                                                    <option value="" disabled>Assign to...</option>
-                                                                    {deeds.map(d => <option key={d._id} value={d._id}>{d.deedCode}</option>)}
-                                                                </select>
+                                                                <div className="text-[8px] font-black text-white text-center uppercase tracking-widest">
+                                                                    {selectedImageIndices.includes(idx) ? 'Deselect' : 'Select'}
+                                                                </div>
                                                                 <button
-                                                                    onClick={() => setUnassignedImages(prev => prev.filter((_, i) => i !== idx))}
-                                                                    className="w-full bg-red-600 text-white p-1 rounded flex items-center justify-center"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setUnassignedImages(prev => prev.filter((_, i) => i !== idx));
+                                                                        setSelectedImageIndices(prev => prev.filter(i => i !== idx).map(i => i > idx ? i - 1 : i));
+                                                                    }}
+                                                                    className="w-full bg-red-600/90 hover:bg-red-600 text-white p-1.5 rounded-lg flex items-center justify-center transition-colors"
                                                                 >
-                                                                    <Trash2 size={10} />
+                                                                    <Trash2 size={12} />
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <div className="absolute bottom-1 left-1 bg-black/60 text-[7px] text-white px-1 rounded truncate max-w-[90%]">{img.name}</div>
+                                                        <div className="absolute bottom-1 left-1 bg-black/60 text-[7px] text-white px-1.5 py-0.5 rounded truncate max-w-[90%] font-bold">{img.name}</div>
                                                     </div>
                                                 ))}
                                                 {unassignedImages.length === 0 && (
@@ -643,13 +713,36 @@ function ImageUploadContent() {
                                             </div>
                                             <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar">
                                                 {deeds.filter(d => d.images.length > 0).map(deed => (
-                                                    <div key={deed._id} className="bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+                                                    <div
+                                                        key={deed._id}
+                                                        onClick={() => {
+                                                            if (selectedImageIndices.length > 0) {
+                                                                moveImageToDeed(deed._id, selectedImageIndices);
+                                                            } else {
+                                                                setFocusedDeedId(focusedDeedId === deed._id ? null : deed._id);
+                                                            }
+                                                        }}
+                                                        className={`bg-white dark:bg-zinc-900 rounded-[1.5rem] border transition-all cursor-pointer overflow-hidden ${focusedDeedId === deed._id
+                                                            ? 'border-blue-500 shadow-md ring-1 ring-blue-500'
+                                                            : 'border-zinc-100 dark:border-zinc-800 shadow-sm hover:border-blue-500/50'
+                                                            }`}
+                                                    >
                                                         <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                                                             <div>
-                                                                <div className="text-[10px] font-black text-zinc-900 dark:text-zinc-100">{deed.deedCode}</div>
+                                                                <div className="text-[10px] font-black text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                                                    {deed.deedCode}
+                                                                    {focusedDeedId === deed._id && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />}
+                                                                </div>
                                                                 <div className="text-[8px] text-zinc-400 font-bold uppercase">{deed.images.length} Image(s)</div>
                                                             </div>
-                                                            <div className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{deed.pageFrom}-{deed.pageTo}</div>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{deed.pageFrom}-{deed.pageTo}</div>
+                                                                {selectedImageIndices.length > 0 && (
+                                                                    <div className="p-1 bg-blue-600 text-white rounded-lg">
+                                                                        <PlusCircle size={10} />
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <div className="p-3 grid grid-cols-4 gap-2">
                                                             {deed.images.map((img, i) => (
