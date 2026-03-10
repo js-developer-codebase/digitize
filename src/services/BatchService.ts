@@ -57,16 +57,18 @@ export class BatchService {
         roId: string;
         search?: string;
         skip?: number;
+        stage?: string;
     }) {
         await dbConnect();
-        const { roId, search, skip = 0 } = params;
+        const { roId, search, skip = 0, stage } = params;
 
-        // Define which stages are visible in the Deed Creation / Batch Selection UI.
-        const visibleStages = ['init', 'deedcontroll', 'data entry'];
+        // If no specific stage is requested, use default visible stages for deed creation.
+        const visibleStages = stage ? undefined : ['init', 'deedcontroll', 'data entry'];
 
         return await batchRepository.findProcessingBatches({
             roId,
             visibleStages,
+            stage,
             search,
             skip,
             limit: 20
@@ -128,6 +130,39 @@ export class BatchService {
 
             await session.commitTransaction();
             return batch;
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+
+    async submitImageUploadBatch(
+        batchId: string,
+        assignments: { deedId: string; images: { imageUrl: string; imagePosition: string }[] }[]
+    ) {
+        await dbConnect();
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            // 1. Update each deed record with its assigned images
+            for (const assignment of assignments) {
+                await deedRecordRepository.updateDocumentImages(
+                    assignment.deedId,
+                    assignment.images
+                );
+            }
+
+            // 2. Update batch stage to 'image qc'
+            await batchRepository.updateStage(batchId, 'image qc');
+
+            // 3. Release batch lock
+            await batchRepository.updateLocking(batchId, null, null);
+
+            await session.commitTransaction();
+            return { success: true };
         } catch (error) {
             await session.abortTransaction();
             throw error;

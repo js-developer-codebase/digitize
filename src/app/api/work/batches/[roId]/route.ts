@@ -10,11 +10,13 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search') || '';
         const skip = parseInt(searchParams.get('skip') || '0');
+        const stage = searchParams.get('stage') || undefined;
 
         const batches = await batchService.getPaginatedBatches({
             roId,
             search,
             skip,
+            stage,
         });
 
         return NextResponse.json(batches);
