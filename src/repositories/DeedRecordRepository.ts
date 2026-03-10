@@ -73,6 +73,17 @@ export class DeedRecordRepository {
             { session }
         );
     }
+
+    async updateDocumentImages(
+        id: string,
+        images: { imageUrl: string; imagePosition: string }[]
+    ): Promise<IDeedRecord | null> {
+        return DeedRecord.findByIdAndUpdate(
+            id,
+            { $set: { document: images } },
+            { new: true }
+        );
+    }
 }
 
 export const deedRecordRepository = new DeedRecordRepository();
