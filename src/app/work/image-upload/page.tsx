@@ -341,6 +341,7 @@ function ImageUploadContent() {
                     const formData = new FormData();
                     formData.append('file', img.file);
                     formData.append('bucket', 'doc');
+                    formData.append('folder', selectedBatch?.batchCode || '');
 
                     const res = await fetch('/api/upload', {
                         method: 'POST',

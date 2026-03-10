@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
-        const key = `${Date.now()}-${file.name}`;
+        const folder = formData.get("folder") as string;
+        const key = folder ? `${folder}/${Date.now()}-${file.name}` : `${Date.now()}-${file.name}`;
 
         const result = await S3Service.uploadFile(bucket, key, buffer, file.type);
         const publicUrl = S3Service.getPublicUrl(bucket, key);

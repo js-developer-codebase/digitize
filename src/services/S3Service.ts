@@ -42,7 +42,10 @@ export class S3Service {
         }
     }
     getPublicUrl(bucket: string, key: string) {
-        const baseUrl = process.env.SUPERBASE_URL?.replace("/storage/v1/s3", "/storage/v1/object/public");
+        let baseUrl = process.env.SUPERBASE_URL || "";
+        baseUrl = baseUrl.replace(".storage.supabase.co", ".supabase.co");
+        baseUrl = baseUrl.replace("/storage/v1/s3", "/storage/v1/object/public");
+
         return `${baseUrl}/${bucket}/${key}`;
     }
 }
